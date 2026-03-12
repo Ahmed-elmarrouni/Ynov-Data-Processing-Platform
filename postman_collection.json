@@ -1,0 +1,51 @@
+{
+    "info": {
+        "name": "Data Platform API",
+        "description": "API tests for the Advanced Python Data Engineering Lab",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Get Total Revenue",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "http://127.0.0.1:8000/revenue",
+                    "protocol": "http",
+                    "host": [
+                        "127",
+                        "0",
+                        "0",
+                        "1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "revenue"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "Get Orders",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "http://127.0.0.1:8000/orders",
+                    "protocol": "http",
+                    "host": [
+                        "127",
+                        "0",
+                        "0",
+                        "1"
+                    ],
+                    "port": "8000",
+                    "path": [
+                        "orders"
+                    ]
+                }
+            }
+        }
+    ]
+}

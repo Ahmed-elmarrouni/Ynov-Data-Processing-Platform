@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Data Platform Dashboard</title>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <link
+            href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
+            rel="stylesheet" />
+        <script
+            src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+        <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .main-content { max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .revenue-box { font-size: 36px; font-weight: bold; color: #27ae60; }
+        
+        /* Filter Styles */
+        .filter-container { display: flex; gap: 20px; margin-bottom: 15px; background: #fdfdfd; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
+        .filter-group { flex: 1; }
+        .filter-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #2980b9; color: white; }
+    </style>
+    </head>
+    <body>
+
+        <div class="main-content">
+            <div class="header">
+                <h1>Dashboard Overview</h1>
+            </div>
+
+            <div class="card">
+                <h2>Total Revenue</h2>
+                <div class="revenue-box" id="revenue">$0.00</div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h2>Top 5 Products</h2>
+                    <canvas id="productsChart"></canvas>
+                </div>
+                <div class="card">
+                    <h2>Revenue by Country (Top 5)</h2>
+                    <canvas id="countryChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Orders List</h2>
+
+                <div class="filter-container">
+                    <div class="filter-group">
+                        <label>Filter by Country</label>
+                        <select id="countryFilter" multiple="multiple"
+                            style="width: 100%;"></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Filter by Product</label>
+                        <select id="productFilter" multiple="multiple"
+                            style="width: 100%;"></select>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                            <th>Country</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <script>
+        let allOrders = []; 
+        let productsChartInstance = null;
+        let countryChartInstance = null;
+
+        function loadData() {
+            // Fetch Revenue
+            fetch('http://127.0.0.1:8000/revenue')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('revenue').innerText = data.total_revenue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                });
+
+            // Fetch Top Products
+            fetch('http://127.0.0.1:8000/top-products')
+                .then(res => res.json())
+                .then(data => {
+                    const labels = data.top_products.map(p => p.product);
+                    const values = data.top_products.map(p => p.total_sold);
+                    renderChart('productsChart', 'bar', labels, values, 'Total Sold', '#3498db', productsChartInstance);
+                });
+
+            // Fetch Revenue by Country
+            fetch('http://127.0.0.1:8000/revenue/country')
+                .then(res => res.json())
+                .then(data => {
+                    const labels = data.revenue_by_country.map(c => c.country);
+                    const values = data.revenue_by_country.map(c => c.revenue);
+                    renderChart('countryChart', 'pie', labels, values, 'Revenue ($)', ['#e74c3c', '#f1c40f', '#2ecc71', '#9b59b6', '#e67e22'], countryChartInstance);
+                });
+
+            // Fetch Orders & Populate Filters
+            fetch('http://127.0.0.1:8000/orders')
+                .then(res => res.json())
+                .then(data => {
+                    allOrders = data.orders; 
+                    populateFilters(allOrders);
+                    applyFilters(); 
+                });
+        }
+
+        // Create the dropdown options and activate Select2
+        function populateFilters(orders) {
+            let countries = new Set();
+            let products = new Set();
+
+            orders.forEach(order => {
+                countries.add(order.country);
+                products.add(order.product);
+            });
+
+            const countrySelect = document.getElementById('countryFilter');
+            const productSelect = document.getElementById('productFilter');
+
+            Array.from(countries).sort().forEach(country => {
+                countrySelect.innerHTML += `<option value="${country}">${country}</option>`;
+            });
+
+            Array.from(products).sort().forEach(product => {
+                productSelect.innerHTML += `<option value="${product}">${product}</option>`;
+            });
+
+            // Turn normal select boxes into Select2 searchable boxes
+            $('#countryFilter').select2({ placeholder: "Search and select countries..." });
+            $('#productFilter').select2({ placeholder: "Search and select products..." });
+
+            // Detect when the user changes a filter and update the table
+            $('#countryFilter, #productFilter').on('change', applyFilters);
+        }
+
+        // Filter the table based on arrays of selected items
+        function applyFilters() {
+            // Select2 returns an array of choices, or null if empty
+            let selectedCountries = $('#countryFilter').val() || [];
+            let selectedProducts = $('#productFilter').val() || [];
+
+            let filteredOrders = allOrders.filter(order => {
+                // If nothing is selected (array is empty), show everything. Otherwise, check if it's in the list.
+                let matchCountry = (selectedCountries.length === 0) || selectedCountries.includes(order.country);
+                let matchProduct = (selectedProducts.length === 0) || selectedProducts.includes(order.product);
+                return matchCountry && matchProduct;
+            });
+
+            renderTable(filteredOrders);
+        }
+
+        // Update the HTML table
+        function renderTable(orders) {
+            let tableBody = document.getElementById('orders-body');
+            tableBody.innerHTML = '';
+            
+            if (orders.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: gray;">No orders match your filters.</td></tr>`;
+                return;
+            }
+
+            orders.forEach(order => {
+                tableBody.innerHTML += `<tr>
+                    <td>${order.product}</td>
+                    <td>${order.quantity}</td>
+                    <td>$${order.price.toFixed(2)}</td>
+                    <td>${order.country}</td>
+                </tr>`;
+            });
+        }
+
+        // Chart Helper
+        function renderChart(canvasId, type, labels, data, label, colors, chartInstance) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (Chart.getChart(canvasId)) { Chart.getChart(canvasId).destroy(); }
+            new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{ label: label, data: data, backgroundColor: colors }]
+                }
+            });
+        }
+
+        // Start loading data when page opens
+        loadData();
+    </script>
+    </body>
+</html>

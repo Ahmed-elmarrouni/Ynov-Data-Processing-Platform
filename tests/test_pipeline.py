@@ -10,8 +10,3 @@ def test_valid_order():
 def test_invalid_order_price():
     with pytest.raises(ValueError):
         Order(product="Mouse", quantity=1, price=-10.0, country="USA")
-
-
-# def test_invalid_country():
-#     with pytest.raises(ValueError):
-#         Order(product="Keyboard", quantity=1, price=50.0, country="Morocco")

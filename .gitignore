@@ -1,6 +1,5 @@
 .venv/
 .pytest_cache/
 .env
-datasets/
 *.pdf
 __pycache__/

@@ -52,3 +52,11 @@ To check if the code works correctly, run the automated tests:
 python3 -m pytest tests/
 
 ```
+
+![architecture diagram](<images/architecture diagram.png>)
+
+![Dashboard Overview](<images/Dashboard Overview.png>)
+
+![ders List filtred](<images/Orders List filtred.png>)
+
+![Orders List](<images/Orders List.png>)
